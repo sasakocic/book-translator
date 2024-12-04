@@ -48,7 +48,7 @@ A web-based application for translating books and large text documents between m
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/book-translator.git
+git clone https://github.com/kazkozdev/book-translator.git
 cd book-translator
 ```
 
