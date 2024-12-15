@@ -121,16 +121,6 @@ We welcome contributions! Here's how:
 
 MIT License - see [LICENSE](LICENSE) file
 
-## Contributing
-
-We're excited to welcome new contributors! Whether you're fixing bugs, improving documentation, or adding new features - every contribution matters.
-
-1. Fork the repository
-2. Create your branch: `git checkout -b feature/amazing`
-3. Commit your changes: `git commit -m 'Add something amazing'`
-4. Push to the branch: `git push origin feature/amazing`
-5. Open a Pull Request
-
 ---
 
 <div align="center">
