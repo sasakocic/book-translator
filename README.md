@@ -25,8 +25,6 @@ Book Translator is a powerful web application for translating books and large te
 - 📊 Real-time metrics and system monitoring
 - 📱 Modern, responsive UI with React and Tailwind CSS
 
-![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
-
 ## Translation Process
 
 The application uses a sophisticated two-stage translation approach:
@@ -42,6 +40,8 @@ The application uses a sophisticated two-stage translation approach:
 - Improves literary quality and natural language flow
 - Maintains context and style
 - Separate progress tracking for refinement stage
+
+![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
 
 ## Prerequisites
 
