@@ -136,5 +136,5 @@ We're excited to welcome new contributors! Whether you're fixing bugs, improving
 <div align="center">
   Made with ❤️
   <br>
-  <a href="https://github.com/KazKozDev/video-analyser/stargazers">⭐ Star us on GitHub!</a>
+  <a href="https://github.com/KazKozDev/book-translator/stargazers">⭐ Star us on GitHub!</a>
 </div>
