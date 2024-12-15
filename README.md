@@ -107,34 +107,6 @@ book-translator/
 - `GET /health` - Service health check
 - `GET /failed-translations` - List failed translations
 
-## Advanced Features
-
-### Translation Processing
-- Chunked processing for large documents
-- Automatic language detection
-- Progress tracking for both translation stages
-- File format handling and validation
-
-### Error Handling
-- Automatic retry system for both stages
-- Detailed error logging
-- State preservation between stages
-- Auto-cleanup after 7 days
-
-### Caching
-- Caching of both initial translations and refinements
-- Results caching for 30 days
-- Automatic cache management
-- Performance optimization
-- Cache analytics
-
-### Monitoring
-- Translation success rates for both stages
-- Processing times per stage
-- System resource usage
-- Queue status
-- Health metrics
-
 ## Contributing
 
 We welcome contributions! Here's how:
