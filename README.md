@@ -121,10 +121,6 @@ We welcome contributions! Here's how:
 
 MIT License - see [LICENSE](LICENSE) file
 
----
-
-## Contributing
-
 ## Contributing
 
 We're excited to welcome new contributors! Whether you're fixing bugs, improving documentation, or adding new features - every contribution matters.
@@ -135,4 +131,4 @@ We're excited to welcome new contributors! Whether you're fixing bugs, improving
 4. Push to the branch: `git push origin feature/amazing`
 5. Open a Pull Request
 
-
+---
