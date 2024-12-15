@@ -1,3 +1,5 @@
+# Book Translator
+
 ![Book Translator](https://raw.githubusercontent.com/KazKozDev/book-translator/main/banner.jpg)
 
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
@@ -7,138 +9,141 @@
 [![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-A web-based application for translating books and large text documents between multiple languages using Ollama AI models. Built with Python (Flask) backend and React frontend.
+Book Translator is a powerful web application for translating books and large text documents between multiple languages using a two-stage translation process: Google Translate for initial translation and Ollama AI models for literary refinement. It combines a Flask backend with a React frontend to provide a smooth and efficient translation experience.
 
-## Features
+## Key Features
 
-### Core Features
-- Translate text documents between multiple languages:
-  - English
-  - Russian
-  - German
-  - French
-  - Spanish
-  - Italian
-  - Chinese
-  - Japanese
-- Automatic language detection
-- Support for multiple Ollama AI models
-- Real-time translation progress tracking
-- Translation history with status tracking
-- Resume interrupted translations
-- Download translated files
-- Modern, responsive UI built with React and Tailwind CSS
+- 🔄 Two-stage translation process:
+  - Stage 1: Fast initial translation using Google Translate
+  - Stage 2: Literary refinement using Ollama AI models
+- 🌍 Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese
+- 🤖 Integration with Ollama AI models for high-quality refinements
+- 🚀 Real-time translation progress tracking for both stages
+- 📚 Translation history and status monitoring
+- 💾 Efficient caching system for improved performance
+- 🔄 Automatic error recovery and retry mechanisms
+- 📊 Real-time metrics and system monitoring
+- 📱 Modern, responsive UI with React and Tailwind CSS
 
-### Advanced Features
-- Translation caching system
-- Automatic error recovery
-- Rate limiting and retry logic
-- Chunked translation processing
-- Real-time metrics monitoring
-- Health check system
-- Comprehensive logging system
-- Automatic cleanup of old translations
+## Translation Process
+
+The application uses a sophisticated two-stage translation approach:
+
+### Stage 1: Initial Translation
+- Uses Google Translate API for fast initial translation
+- Handles large volumes of text efficiently
+- Provides basic translation quality
+- Progress tracking for initial translation stage
+
+### Stage 2: Literary Refinement
+- Uses Ollama AI models to refine the initial translation
+- Improves literary quality and natural language flow
+- Maintains context and style
+- Separate progress tracking for refinement stage
 
 ## Prerequisites
+
 - Python 3.7+
 - [Ollama](https://ollama.ai/) installed and running
-- Node.js (optional, for development)
+- Node.js (for development)
 
-## Installation
+## Quick Start
 
-1. Clone the repository:
+1. **Clone the repository**
 ```bash
 git clone https://github.com/kazkozdev/book-translator.git
 cd book-translator
 ```
 
-2. Install Python dependencies:
+2. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Make sure Ollama is running and you have at least one model pulled:
+3. **Pull required Ollama model**
 ```bash
 ollama pull aya-expanse:32b
 ```
 
-## Running the Application
-
-1. Start the Flask backend:
+4. **Start the application**
 ```bash
 python translator.py
 ```
 
-2. Access the application:
-Open `http://localhost:5001` in your web browser
+5. **Access the application**
+- Open `http://localhost:5001` in your browser
 
-## Project Structure
+## Architecture
+
 ```
 book-translator/
 ├── translator.py        # Flask backend
-├── static/             # Static files
-│   └── index.html      # React frontend
-├── uploads/            # Temporary upload directory
-├── translations/       # Completed translations directory
-├── logs/              # Application logs directory
-│   ├── app.log        # Main application logs
-│   ├── translations.log # Translation-specific logs
-│   └── api.log        # API request logs
-├── translations.db     # Main SQLite database
-└── cache.db           # Translation cache database
+├── static/             # Frontend files
+├── uploads/            # Temporary uploads
+├── translations/       # Completed translations
+├── logs/              # Application logs
+├── translations.db     # Main database
+└── cache.db           # Cache database
 ```
 
-## API Endpoints
+## API Reference
 
-### Translation Operations
-- `POST /translate` - Start new translation
-- `GET /translations` - Get translation history
-- `GET /translations/<id>` - Get specific translation details
-- `GET /download/<id>` - Download completed translation
+### Translation Endpoints
+- `POST /translate` - Start translation process (both stages)
+- `GET /translations` - Get history
+- `GET /translations/<id>` - Get translation details including stage progress
+- `GET /download/<id>` - Download refined translation
 - `POST /retry-translation/<id>` - Retry failed translation
 
-### System Operations
-- `GET /models` - Get available Ollama models
-- `GET /metrics` - Get system metrics and statistics
-- `GET /health` - Check service health
-- `GET /failed-translations` - Get list of failed translations
+### System Endpoints
+- `GET /models` - List available Ollama models
+- `GET /metrics` - System metrics
+- `GET /health` - Service health check
+- `GET /failed-translations` - List failed translations
 
-## Monitoring and Metrics
+## Advanced Features
 
-The application provides real-time monitoring of:
-- Translation success rate
-- Average translation time
-- CPU usage
-- Memory usage
-- Disk usage
-- System uptime
-- Translation queue status
+### Translation Processing
+- Chunked processing for large documents
+- Automatic language detection
+- Progress tracking for both translation stages
+- File format handling and validation
 
-## Error Handling and Recovery
+### Error Handling
+- Automatic retry system for both stages
+- Detailed error logging
+- State preservation between stages
+- Auto-cleanup after 7 days
 
-- Automatic retry system for failed translations
-- Configurable retry attempts and backoff
-- Detailed error logging and tracking
-- Translation state preservation
-- Automatic cleanup of failed translations after 7 days
+### Caching
+- Caching of both initial translations and refinements
+- Results caching for 30 days
+- Automatic cache management
+- Performance optimization
+- Cache analytics
 
-## Caching System
-
-- Translation results are cached for improved performance
-- Configurable cache retention period (default 30 days)
-- Automatic cache cleanup
-- Cache hit/miss tracking
+### Monitoring
+- Translation success rates for both stages
+- Processing times per stage
+- System resource usage
+- Queue status
+- Health metrics
 
 ## Contributing
 
+We welcome contributions! Here's how:
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file
 
-![Book Translator](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
+---
+
+![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
+## Contributing
