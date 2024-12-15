@@ -132,3 +132,9 @@ We're excited to welcome new contributors! Whether you're fixing bugs, improving
 5. Open a Pull Request
 
 ---
+
+<div align="center">
+  Made with ❤️
+  <br>
+  <a href="https://github.com/KazKozDev/video-analyser/stargazers">⭐ Star us on GitHub!</a>
+</div>
