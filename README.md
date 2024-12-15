@@ -11,8 +11,6 @@
 
 Book Translator is a powerful web application for translating books and large text documents between multiple languages using a two-stage translation process: Google Translate for initial translation and Ollama AI models for literary refinement. It combines a Flask backend with a React frontend to provide a smooth and efficient translation experience.
 
-![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
-
 ## Key Features
 
 - 🔄 Two-stage translation process:
@@ -26,6 +24,8 @@ Book Translator is a powerful web application for translating books and large te
 - 🔄 Automatic error recovery and retry mechanisms
 - 📊 Real-time metrics and system monitoring
 - 📱 Modern, responsive UI with React and Tailwind CSS
+
+![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
 
 ## Translation Process
 
