@@ -1,8 +1,6 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/f62278a1-ec33-4096-aa13-a855dd7bda4f" alt="Logo">
-  <br>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.7+-blue.svg" alt="Python 3.7+"></a>
- 
+  <br> 
 </div>
 
 <div align="center">
