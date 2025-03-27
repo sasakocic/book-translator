@@ -77,31 +77,6 @@ book-translator/
 └── cache.db           # Cache database
 ```
 
-## API Reference
-
-### Translation Endpoints
-- `POST /translate` - Start translation process (both stages)
-- `GET /translations` - Get history
-- `GET /translations/<id>` - Get translation details including stage progress
-- `GET /download/<id>` - Download refined translation
-- `POST /retry-translation/<id>` - Retry failed translation
-
-### System Endpoints
-- `GET /models` - List available Ollama models
-- `GET /metrics` - System metrics
-- `GET /health` - Service health check
-- `GET /failed-translations` - List failed translations
-
-## Contributing
-
-We welcome contributions! Here's how:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file
