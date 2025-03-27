@@ -32,13 +32,13 @@ The application uses a sophisticated two-stage translation approach:
 - Maintains context and style
 - Separate progress tracking for refinement stage
 
-## Prerequisites
+### Prerequisites
 
 - Python 3.7+
 - [Ollama](https://ollama.ai/) installed and running
 - Node.js (for development)
 
-## Quick Start
+### Quick Start
 
 1. **Clone the repository**
 ```bash
@@ -64,7 +64,7 @@ python translator.py
 5. **Access the application**
 - Open `http://localhost:5001` in your browser
 
-## Architecture
+### Architecture
 
 ```
 book-translator/
@@ -77,7 +77,7 @@ book-translator/
 └── cache.db           # Cache database
 ```
 
-## License
+### License
 
 MIT License - see [LICENSE](LICENSE)
 
