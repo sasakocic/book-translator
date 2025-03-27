@@ -82,9 +82,13 @@ book-translator/
 MIT License - see [LICENSE](LICENSE) file
 
 ---
+---
+If you like this project, please give it a star ⭐
 
-<div align="center">
-  Made with ❤️
-  <br>
+For questions, feedback, or support, reach out to:
+
+[Artem KK](https://www.linkedin.com/in/kazkozdev/) | [Issue Tracker](https://github.com/KazKozDev/prompt-studio/issues) 
+
+
   <a href="https://github.com/KazKozDev/book-translator/stargazers">⭐ Star us on GitHub!</a>
-</div>
+
