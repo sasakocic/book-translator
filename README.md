@@ -11,17 +11,12 @@ The tool processes plain text files using Google Translate and Ollama LLM models
 
 ## Key Features
 
-- 🔄 Two-stage translation process:
-  - Stage 1: Fast initial translation using Google Translate
-  - Stage 2: Literary refinement using Ollama AI models
-- 🌍 Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese
-- 🤖 Integration with Ollama AI models for high-quality refinements
-- 🚀 Real-time translation progress tracking for both stages
-- 📚 Translation history and status monitoring
-- 💾 Efficient caching system for improved performance
-- 🔄 Automatic error recovery and retry mechanisms
-- 📊 Real-time metrics and system monitoring
-- 📱 Modern, responsive UI with React and Tailwind CSS
+- Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese
+- Real-time translation progress tracking for both stages
+- Translation history and status monitoring
+- Automatic error recovery and retry mechanisms
+- Real-time metrics and system monitoring
+- Modern, responsive UI with React and Tailwind CSS
 
 ## Demo
 
