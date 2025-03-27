@@ -9,7 +9,11 @@
 [![Tailwind CSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-Book Translator is a powerful application for translating books and large text documents (.txt files) between multiple languages using a two-stage translation process: Google Translate for initial translation and Ollama AI models for literary refinement. It works with plain text format only and combines a Flask backend with a React frontend to provide a smooth and efficient translation experience.
+Book Translator is a platform for translating books and large text documents.
+
+Two-step process. Better quality.
+
+The tool processes plain text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary editing for better results.
 
 ## Key Features
 
