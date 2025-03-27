@@ -10,7 +10,7 @@
 </div>
   <p>The tool processes text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary refinement for better results. Ideal for translators, publishers, authors, researchers and content creators who need to translate large text documents.</p>
 Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese, real-time translation progress tracking for both stages, translation history and status monitoring, automatic error recovery and retry mechanisms, and real-time metrics and system monitoring.
-
+  <br> 
 ![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
 
 The application uses a sophisticated two-stage translation approach:
