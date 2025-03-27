@@ -14,10 +14,6 @@
 
 Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese, real-time translation progress tracking for both stages, translation history and status monitoring, automatic error recovery and retry mechanisms, and real-time metrics and system monitoring.
 
-## Demo
-
-Experience the translation process in modern, user-friendly interface:
-
 ![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
 
 ## Translation Process
