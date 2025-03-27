@@ -25,7 +25,7 @@ The application uses a sophisticated two-stage translation approach:
 - Progress tracking for initial translation stage
 
 ### Stage 2: Literary Refinement
-- Uses Ollama AI models to refine the initial translation
+- Uses Ollama LLM models to refine the initial translation
 - Improves literary quality and natural language flow
 - Maintains context and style
 - Separate progress tracking for refinement stage
