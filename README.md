@@ -82,7 +82,6 @@ book-translator/
 MIT License - see [LICENSE](LICENSE)
 
 ---
----
 If you like this project, please give it a star ⭐
 
 For questions, feedback, or support, reach out to:
