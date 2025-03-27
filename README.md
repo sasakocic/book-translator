@@ -12,13 +12,7 @@
 </div>
   <p>The tool processes plain text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary editing for better results.</p>
 
-## Key Features
-
-- Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese
-- Real-time translation progress tracking for both stages
-- Translation history and status monitoring
-- Automatic error recovery and retry mechanisms
-- Real-time metrics and system monitoring
+Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese, real-time translation progress tracking for both stages, translation history and status monitoring, automatic error recovery and retry mechanisms, and real-time metrics and system monitoring.
 
 ## Demo
 
