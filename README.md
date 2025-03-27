@@ -6,7 +6,7 @@
 <div align="center">
 <p><strong>Book Translator</strong></p>
   <p>A platform for translating books and large text documents.</p>
-  <p><strong>Two-step process. Better quality.</strong></p>
+  <p><strong>Two-step process. For better quality.</strong></p>
 </div>
   <p>The tool processes text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary refinement for better results. Ideal for translators, publishers, authors, researchers and content creators who need to translate large text documents.</p>
 Support for multiple languages including English, Russian, German, French, Spanish, Italian, Chinese, and Japanese, real-time translation progress tracking for both stages, translation history and status monitoring, automatic error recovery and retry mechanisms, and real-time metrics and system monitoring.  <br>   <br> 
