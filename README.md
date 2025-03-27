@@ -9,8 +9,8 @@
   <h1>Book Translator</h1>
   <p>A platform for translating books and large text documents.</p>
   <p><strong>Two-step process. Better quality.</strong></p>
-  <p>The tool processes plain text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary editing for better results.</p>
 </div>
+  <p>The tool processes plain text files using Google Translate and Ollama LLM models. It combines primary machine translation with literary editing for better results.</p>
 
 ## Key Features
 
