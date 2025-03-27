@@ -1,6 +1,5 @@
 <div align="center">
-https://github.com/user-attachments/assets/f62278a1-ec33-4096-aa13-a855dd7bda4f
-
+  <img src="https://github.com/user-attachments/assets/f62278a1-ec33-4096-aa13-a855dd7bda4f" alt="Logo">
   <br>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.7+-blue.svg" alt="Python 3.7+"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
