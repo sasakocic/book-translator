@@ -1,5 +1,7 @@
 # Book Translator
 
+![logo](https://github.com/user-attachments/assets/d64bd0df-b002-4365-8967-18884a5f2024)
+
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
