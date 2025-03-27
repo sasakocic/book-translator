@@ -4,7 +4,7 @@
 </div>
 
 <div align="center">
-  <p>Book Translator</p>
+<p><strong>Book Translator</strong></p>
   <p>A platform for translating books and large text documents.</p>
   <p><strong>Two-step process. Better quality.</strong></p>
 </div>
