@@ -16,8 +16,6 @@ Support for multiple languages including English, Russian, German, French, Spani
 
 ![Book Translator Demo](https://raw.githubusercontent.com/KazKozDev/book-translator/main/demo.jpg)
 
-## Translation Process
-
 The application uses a sophisticated two-stage translation approach:
 
 ### Stage 1: Initial Translation
