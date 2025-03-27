@@ -16,7 +16,6 @@ The tool processes plain text files using Google Translate and Ollama LLM models
 - Translation history and status monitoring
 - Automatic error recovery and retry mechanisms
 - Real-time metrics and system monitoring
-- Modern, responsive UI with React and Tailwind CSS
 
 ## Demo
 
