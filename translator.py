@@ -369,7 +369,7 @@ class BookTranslator:
         
         return result
 
-    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int):
+    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int, skip_llm_refinement: bool = False):
         start_time = time.time()
         success = False
         
@@ -387,13 +387,14 @@ class BookTranslator:
                 target=target_lang
             )
             
-            # Update database with total chunks
+            # Update database with total chunks (adjust for single vs two-stage translation)
+            total_stages = 1 if skip_llm_refinement else 2
             with sqlite3.connect(DB_PATH) as conn:
                 conn.execute('''
                     UPDATE translations 
                     SET total_chunks = ?, status = 'in_progress'
                     WHERE id = ?
-                ''', (total_chunks * 2, translation_id))
+                ''', (total_chunks * total_stages, translation_id))
             
             for i, chunk in enumerate(chunks, 1):
                 try:
@@ -415,27 +416,58 @@ class BookTranslator:
                         
                         machine_translations.append(google_translation)
                         
-                        progress = (i / (total_chunks * 2)) * 100
-                        yield {
-                            'progress': progress,
-                            'stage': 'machine_translation',
-                            'machine_translation': '\n\n'.join(machine_translations),
-                            'current_chunk': i,
-                            'total_chunks': total_chunks * 2
-                        }
-                        
-                        # Stage 2: Literary refinement
-                        logger.translation_logger.info(f"Refining chunk {i}/{total_chunks}")
-                        refined_translation = self.refine_translation(google_translation, target_lang)
-                        translated_chunks.append(refined_translation)
-                        
-                        # Cache the results
-                        cache.cache_translation(
-                            chunk, refined_translation, google_translation,
-                            source_lang, target_lang
-                        )
+                        # If skipping LLM refinement, use Google translation as final result
+                        if skip_llm_refinement:
+                            translated_chunks.append(google_translation)
+                            final_progress = (i / total_chunks) * 100
+                            
+                            # Cache the results (same for both machine and translated)
+                            cache.cache_translation(
+                                chunk, google_translation, google_translation,
+                                source_lang, target_lang
+                            )
+                            
+                            yield {
+                                'progress': final_progress,
+                                'stage': 'google_translate_only',
+                                'machine_translation': '\n\n'.join(machine_translations),
+                                'translated_text': '\n\n'.join(translated_chunks),
+                                'current_chunk': i,
+                                'total_chunks': total_chunks
+                            }
+                        else:
+                            progress = (i / (total_chunks * 2)) * 100
+                            yield {
+                                'progress': progress,
+                                'stage': 'machine_translation',
+                                'machine_translation': '\n\n'.join(machine_translations),
+                                'current_chunk': i,
+                                'total_chunks': total_chunks * 2
+                            }
+                            
+                            # Stage 2: Literary refinement
+                            logger.translation_logger.info(f"Refining chunk {i}/{total_chunks}")
+                            refined_translation = self.refine_translation(google_translation, target_lang)
+                            translated_chunks.append(refined_translation)
+                            
+                            # Cache the results
+                            cache.cache_translation(
+                                chunk, refined_translation, google_translation,
+                                source_lang, target_lang
+                            )
                     
-                    progress = ((i + total_chunks) / (total_chunks * 2)) * 100
+                    # Update progress and database
+                    if not skip_llm_refinement:
+                        progress = ((i + total_chunks) / (total_chunks * 2)) * 100
+                        current_chunk = i + total_chunks
+                        total_chunks_display = total_chunks * 2
+                        stage = 'literary_refinement'
+                    else:
+                        progress = (i / total_chunks) * 100
+                        current_chunk = i
+                        total_chunks_display = total_chunks
+                        stage = 'google_translate_only'
+                    
                     with sqlite3.connect(DB_PATH) as conn:
                         conn.execute('''
                             UPDATE translations 
@@ -449,18 +481,19 @@ class BookTranslator:
                             progress,
                             '\n\n'.join(translated_chunks),
                             '\n\n'.join(machine_translations),
-                            i + total_chunks,
+                            current_chunk,
                             translation_id
                         ))
                     
-                    yield {
-                        'progress': progress,
-                        'stage': 'literary_refinement',
-                        'machine_translation': '\n\n'.join(machine_translations),
-                        'translated_text': '\n\n'.join(translated_chunks),
-                        'current_chunk': i + total_chunks,
-                        'total_chunks': total_chunks * 2
-                    }
+                    if not skip_llm_refinement:
+                        yield {
+                            'progress': progress,
+                            'stage': stage,
+                            'machine_translation': '\n\n'.join(machine_translations),
+                            'translated_text': '\n\n'.join(translated_chunks),
+                            'current_chunk': current_chunk,
+                            'total_chunks': total_chunks_display
+                        }
                     
                 except Exception as e:
                     error_msg = f"Error processing chunk {i}: {str(e)}"
@@ -612,7 +645,8 @@ recovery = TranslationRecovery()
 # Health checking middleware
 @app.before_request
 def check_ollama():
-    if request.endpoint != 'health_check':
+    # Skip Ollama check for Google Translate only requests
+    if request.endpoint not in ['health_check', 'translate']:
         try:
             response = requests.get("http://localhost:11434/api/tags", timeout=5)
             response.raise_for_status()
@@ -621,6 +655,18 @@ def check_ollama():
             return jsonify({
                 'error': 'Translation service is not available'
             }), 503
+    elif request.endpoint == 'translate' and request.method == 'POST':
+        # Only check Ollama if a model is specified
+        model_name = request.form.get('model')
+        if model_name and model_name.strip():
+            try:
+                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                logger.app_logger.error(f"Ollama health check failed: {str(e)}")
+                return jsonify({
+                    'error': 'LLM service is not available. You can still use Google Translate only by leaving the model field empty.'
+                }), 503
 
 # Flask routes
 @app.route('/')
@@ -683,8 +729,14 @@ def translate():
         target_lang = request.form.get('targetLanguage')
         model_name = request.form.get('model')
         
-        if not all([file, source_lang, target_lang, model_name]):
+        # Allow empty model_name for Google Translate only
+        if not all([file, source_lang, target_lang]):
             return jsonify({'error': 'Missing required parameters'}), 400
+        
+        # Determine if we should skip LLM refinement
+        skip_llm_refinement = not model_name or model_name.strip() == ''
+        if skip_llm_refinement:
+            model_name = 'google_translate_only'  # Set a placeholder for database
         
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
@@ -714,7 +766,7 @@ def translate():
         
         def generate():
             try:
-                for update in translator.translate_text(text, source_lang, target_lang, translation_id):
+                for update in translator.translate_text(text, source_lang, target_lang, translation_id, skip_llm_refinement):
                     yield f"data: {json.dumps(update, ensure_ascii=False)}\n\n"
             except Exception as e:
                 error_message = str(e)

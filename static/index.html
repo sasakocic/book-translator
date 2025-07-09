@@ -445,7 +445,7 @@
             }
             
             if (!selectedModel) {
-              errors.model = 'Model selection is required';
+              // Model is now optional - if not selected, will use Google Translate only
             }
             
             if (inputMode === 'file' && !inputFile) {
@@ -683,12 +683,12 @@
               </div>
               
               <div>
-              <label className="block text-sm font-medium mb-2">Select Model</label>
+              <label className="block text-sm font-medium mb-2">Select Model <span className="text-gray-500 font-normal">(Optional)</span></label>
               <Select
               value={selectedModel}
               onChange={setSelectedModel}
               options={models.map(m => ({ code: m.name, name: m.name }))}
-              placeholder="Select AI model"
+              placeholder="Google Translate Only (Fast)"
               error={formErrors.model}
               />
               </div>
@@ -741,7 +741,7 @@
               ) : (
                 <Button
                 onClick={handleTranslate}
-                disabled={!sourceLanguage || !targetLanguage || !selectedModel || 
+                disabled={!sourceLanguage || !targetLanguage || 
                          (inputMode === 'file' ? !inputFile : !inputText.trim())}
                 className="w-full"
                 >
