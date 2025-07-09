@@ -19,6 +19,7 @@ from flask import Flask, request, jsonify, Response, send_file, send_from_direct
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from deep_translator import GoogleTranslator
+import unicodedata
 
 app = Flask(__name__)
 CORS(app)
@@ -282,6 +283,18 @@ class BookTranslator:
         self.model_name = model_name
         self.api_url = "http://localhost:11434/api/generate"
         self.chunk_size = chunk_size
+        
+        # Serbian Cyrillic to Latin transliteration map
+        self.cyrillic_to_latin = {
+            'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Ђ': 'Đ', 'Е': 'E', 'Ж': 'Ž',
+            'З': 'Z', 'И': 'I', 'Ј': 'J', 'К': 'K', 'Л': 'L', 'Љ': 'Lj', 'М': 'M', 'Н': 'N',
+            'Њ': 'Nj', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'Ћ': 'Ć', 'У': 'U',
+            'Ф': 'F', 'Х': 'H', 'Ц': 'C', 'Ч': 'Č', 'Џ': 'Dž', 'Ш': 'Š',
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'ђ': 'đ', 'е': 'e', 'ж': 'ž',
+            'з': 'z', 'и': 'i', 'ј': 'j', 'к': 'k', 'л': 'l', 'љ': 'lj', 'м': 'm', 'н': 'n',
+            'њ': 'nj', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'ћ': 'ć', 'у': 'u',
+            'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'č', 'џ': 'dž', 'ш': 'š'
+        }
         self.session = requests.Session()
         self.session.mount('http://', requests.adapters.HTTPAdapter(
             max_retries=3,
@@ -333,6 +346,29 @@ class BookTranslator:
             
         return chunks
 
+    def transliterate_serbian(self, text: str) -> str:
+        """Convert Serbian Cyrillic to Latin script"""
+        result = ""
+        i = 0
+        while i < len(text):
+            # Handle multi-character mappings first
+            if i < len(text) - 1:
+                two_char = text[i:i+2]
+                if two_char in self.cyrillic_to_latin:
+                    result += self.cyrillic_to_latin[two_char]
+                    i += 2
+                    continue
+            
+            # Handle single characters
+            char = text[i]
+            if char in self.cyrillic_to_latin:
+                result += self.cyrillic_to_latin[char]
+            else:
+                result += char
+            i += 1
+        
+        return result
+
     def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int):
         start_time = time.time()
         success = False
@@ -371,6 +407,12 @@ class BookTranslator:
                         # Stage 1: Google Translate
                         logger.translation_logger.info(f"Translating chunk {i}/{total_chunks}")
                         google_translation = translator.translate(chunk)
+                        
+                        # Convert Serbian Cyrillic to Latin if needed
+                        if target_lang.lower() == 'sr':
+                            google_translation = self.transliterate_serbian(google_translation)
+                            logger.translation_logger.info(f"Transliterated Serbian to Latin: {google_translation[:50]}...")
+                        
                         machine_translations.append(google_translation)
                         
                         progress = (i / (total_chunks * 2)) * 100
@@ -486,11 +528,18 @@ class BookTranslator:
             'ru': 'Улучшите этот текст, чтобы он звучал более естественно на русском языке. Верните только улучшенный текст:',
             'zh': '改善这段文字，使其在中文中更加自然。仅返回改善后的文字：',
             'ja': 'この文章を日本語としてより自然に聞こえるように改善してください。改善されたテキストのみを返してください：',
-            'ko': '이 텍스트를 한국어로 더 자연스럽게 들리도록 개선하십시오. 개선된 텍스트만 반환하십시오:'
+            'ko': '이 텍스트를 한국어로 더 자연스럽게 들리도록 개선하십시오. 개선된 텍스트만 반환하십시오:',
+            'sr': 'Poboljšajte ovaj tekst da zvuči prirodnije na srpskom jeziku. Vratite samo poboljšani tekst:',
+            'hr': 'Poboljšajte ovaj tekst da zvuči prirodnije na hrvatskom jeziku. Vratite samo poboljšani tekst:'
         }
         
         # Получаем промпт для выбранного языка или используем английский как запасной вариант
         prompt_text = prompts.get(target_lang.lower(), prompts['en'])
+        
+        # Debug logging for language detection
+        logger.translation_logger.info(f"Refinement for language '{target_lang}' (type: {type(target_lang)}) -> Available keys: {list(prompts.keys())}")
+        logger.translation_logger.info(f"Looking for key: '{target_lang.lower()}' -> Found: {'sr' in prompts}")
+        logger.translation_logger.info(f"Using prompt: {prompt_text[:50]}...")
         
         prompt = f"""{prompt_text}
     

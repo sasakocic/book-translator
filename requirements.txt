@@ -18,3 +18,5 @@ pylint
 types-requests
 types-Flask
 types-Flask-Cors
+deep-translator
+psutil
