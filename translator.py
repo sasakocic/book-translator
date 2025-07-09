@@ -63,7 +63,7 @@ class AppLogger:
         
         handler = RotatingFileHandler(
             log_file,
-            maxBytes=10*1024*1024,
+            maxBytes=50*1024*1024,
             backupCount=5,
             encoding='utf-8'
         )
