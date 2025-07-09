@@ -387,14 +387,13 @@ class BookTranslator:
                 target=target_lang
             )
             
-            # Update database with total chunks (adjust for single vs two-stage translation)
-            total_stages = 1 if skip_llm_refinement else 2
+            # Update database with total chunks (same for both modes now)
             with sqlite3.connect(DB_PATH) as conn:
                 conn.execute('''
                     UPDATE translations 
                     SET total_chunks = ?, status = 'in_progress'
                     WHERE id = ?
-                ''', (total_chunks * total_stages, translation_id))
+                ''', (total_chunks, translation_id))
             
             for i, chunk in enumerate(chunks, 1):
                 try:
@@ -440,15 +439,6 @@ class BookTranslator:
                                 'total_chunks': total_chunks
                             }
                         else:
-                            progress = (i / (total_chunks * 2)) * 100
-                            yield {
-                                'progress': progress,
-                                'stage': 'machine_translation',
-                                'machine_translation': '\n\n'.join(machine_translations),
-                                'current_chunk': i,
-                                'total_chunks': total_chunks * 2
-                            }
-                            
                             # Stage 2: Literary refinement
                             logger.translation_logger.info(f"Refining chunk {i}/{total_chunks}")
                             refined_translation = self.refine_translation(google_translation, target_lang)
@@ -461,11 +451,12 @@ class BookTranslator:
                                     source_lang, target_lang
                                 )
                     
-                    # Update progress and database
+                    # Update progress and database (single update per chunk)
                     if not skip_llm_refinement:
-                        progress = ((i + total_chunks) / (total_chunks * 2)) * 100
-                        current_chunk = i + total_chunks
-                        total_chunks_display = total_chunks * 2
+                        # For two-stage: each completed chunk represents 1/total_chunks of 100%
+                        progress = (i / total_chunks) * 100
+                        current_chunk = i
+                        total_chunks_display = total_chunks
                         stage = 'literary_refinement'
                     else:
                         progress = (i / total_chunks) * 100
@@ -490,15 +481,15 @@ class BookTranslator:
                             translation_id
                         ))
                     
-                    if not skip_llm_refinement:
-                        yield {
-                            'progress': progress,
-                            'stage': stage,
-                            'machine_translation': '\n\n'.join(machine_translations),
-                            'translated_text': '\n\n'.join(translated_chunks),
-                            'current_chunk': current_chunk,
-                            'total_chunks': total_chunks_display
-                        }
+                    # Send progress update (single update per chunk)
+                    yield {
+                        'progress': progress,
+                        'stage': stage,
+                        'machine_translation': '\n\n'.join(machine_translations),
+                        'translated_text': '\n\n'.join(translated_chunks),
+                        'current_chunk': current_chunk,
+                        'total_chunks': total_chunks_display
+                    }
                     
                 except Exception as e:
                     error_msg = f"Error processing chunk {i}: {str(e)}"
