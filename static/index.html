@@ -44,7 +44,8 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const API_URL = 'http://127.0.0.1:5001';
+        // Auto-detect API URL based on current host
+        const API_URL = window.location.origin;
 
         // Icons Component
         const Icons = {
@@ -275,12 +276,34 @@
             </div>
         );
 
+        const TextInput = ({ value, onChange, placeholder, error }) => (
+            <div>
+                <label className="block text-sm font-medium mb-2">Enter Text to Translate</label>
+                <textarea
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    className={`w-full h-32 p-3 border rounded-md resize-vertical transition-colors duration-200
+                              ${error ? 'border-red-500' : 'border-gray-300'}`}
+                    style={{ minHeight: '128px' }}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                    Tip: Use Shift+Enter for new lines, or paste multiline text
+                </div>
+                {error && (
+                    <p className="text-sm text-red-500 mt-1">{error}</p>
+                )}
+            </div>
+        );
+
         function BookTranslatorUI() {
             // State
             const [sourceLanguage, setSourceLanguage] = React.useState('');
             const [targetLanguage, setTargetLanguage] = React.useState('');
             const [selectedModel, setSelectedModel] = React.useState('');
             const [inputFile, setInputFile] = React.useState(null);
+            const [inputText, setInputText] = React.useState('');
+            const [inputMode, setInputMode] = React.useState('file'); // 'file' or 'text'
             const [isTranslating, setIsTranslating] = React.useState(false);
             const [progress, setProgress] = React.useState(0);
             const [models, setModels] = React.useState([]);
@@ -393,6 +416,22 @@
               reader.readAsText(file);
             }
           };
+
+          const handleTextChange = (text) => {
+            setInputText(text);
+            setOriginalText(text);
+          };
+
+          const handleInputModeChange = (mode) => {
+            setInputMode(mode);
+            setFormErrors({});
+            if (mode === 'text') {
+              setInputFile(null);
+            } else {
+              setInputText('');
+              setOriginalText('');
+            }
+          };
           
           const validateForm = () => {
             const errors = {};
@@ -409,8 +448,12 @@
               errors.model = 'Model selection is required';
             }
             
-            if (!inputFile) {
+            if (inputMode === 'file' && !inputFile) {
               errors.file = 'Please select a file';
+            }
+            
+            if (inputMode === 'text' && !inputText.trim()) {
+              errors.text = 'Please enter text to translate';
             }
             
             setFormErrors(errors);
@@ -428,7 +471,16 @@
             setError(null);
             
             const formData = new FormData();
-            formData.append('file', inputFile);
+            
+            if (inputMode === 'file') {
+              formData.append('file', inputFile);
+            } else {
+              // Create a virtual file from text input
+              const textBlob = new Blob([inputText], { type: 'text/plain' });
+              const textFile = new File([textBlob], 'input.txt', { type: 'text/plain' });
+              formData.append('file', textFile);
+            }
+            
             formData.append('sourceLanguage', sourceLanguage);
             formData.append('targetLanguage', targetLanguage);
             formData.append('model', selectedModel);
@@ -642,18 +694,55 @@
               </div>
               </div>
               
-              <FileUpload 
-              onFileChange={handleFileChange} 
-              error={formErrors.file}
-              inputFile={inputFile}
-              />
+              {/* Input Mode Toggle */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Input Method</label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="file"
+                      checked={inputMode === 'file'}
+                      onChange={(e) => handleInputModeChange(e.target.value)}
+                      className="mr-2"
+                    />
+                    Upload File
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="text"
+                      checked={inputMode === 'text'}
+                      onChange={(e) => handleInputModeChange(e.target.value)}
+                      className="mr-2"
+                    />
+                    Enter Text
+                  </label>
+                </div>
+              </div>
+              
+              {inputMode === 'file' ? (
+                <FileUpload 
+                  onFileChange={handleFileChange} 
+                  error={formErrors.file}
+                  inputFile={inputFile}
+                />
+              ) : (
+                <TextInput
+                  value={inputText}
+                  onChange={handleTextChange}
+                  placeholder="Enter your text here...&#10;&#10;You can use Shift+Enter for new lines&#10;or paste multiline text directly."
+                  error={formErrors.text}
+                />
+              )}
               
               {isTranslating ? (
                 <ProgressBar progress={progress} />
               ) : (
                 <Button
                 onClick={handleTranslate}
-                disabled={!sourceLanguage || !targetLanguage || !selectedModel || !inputFile}
+                disabled={!sourceLanguage || !targetLanguage || !selectedModel || 
+                         (inputMode === 'file' ? !inputFile : !inputText.trim())}
                 className="w-full"
                 >
                 Start Translation
