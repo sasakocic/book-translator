@@ -369,7 +369,7 @@ class BookTranslator:
         
         return result
 
-    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int, skip_llm_refinement: bool = False):
+    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int, skip_llm_refinement: bool = False, use_cache: bool = True):
         start_time = time.time()
         success = False
         
@@ -398,8 +398,11 @@ class BookTranslator:
             
             for i, chunk in enumerate(chunks, 1):
                 try:
-                    # Check cache first
-                    cached_result = cache.get_cached_translation(chunk, source_lang, target_lang)
+                    # Check cache first (if caching is enabled)
+                    cached_result = None
+                    if use_cache:
+                        cached_result = cache.get_cached_translation(chunk, source_lang, target_lang)
+                    
                     if cached_result:
                         machine_translations.append(cached_result['machine_translation'])
                         translated_chunks.append(cached_result['translated_text'])
@@ -422,10 +425,11 @@ class BookTranslator:
                             final_progress = (i / total_chunks) * 100
                             
                             # Cache the results (same for both machine and translated)
-                            cache.cache_translation(
-                                chunk, google_translation, google_translation,
-                                source_lang, target_lang
-                            )
+                            if use_cache:
+                                cache.cache_translation(
+                                    chunk, google_translation, google_translation,
+                                    source_lang, target_lang
+                                )
                             
                             yield {
                                 'progress': final_progress,
@@ -451,10 +455,11 @@ class BookTranslator:
                             translated_chunks.append(refined_translation)
                             
                             # Cache the results
-                            cache.cache_translation(
-                                chunk, refined_translation, google_translation,
-                                source_lang, target_lang
-                            )
+                            if use_cache:
+                                cache.cache_translation(
+                                    chunk, refined_translation, google_translation,
+                                    source_lang, target_lang
+                                )
                     
                     # Update progress and database
                     if not skip_llm_refinement:
@@ -728,6 +733,7 @@ def translate():
         source_lang = request.form.get('sourceLanguage')
         target_lang = request.form.get('targetLanguage')
         model_name = request.form.get('model')
+        use_cache = request.form.get('useCache', 'true').lower() == 'true'
         
         # Allow empty model_name for Google Translate only
         if not all([file, source_lang, target_lang]):
@@ -766,7 +772,7 @@ def translate():
         
         def generate():
             try:
-                for update in translator.translate_text(text, source_lang, target_lang, translation_id, skip_llm_refinement):
+                for update in translator.translate_text(text, source_lang, target_lang, translation_id, skip_llm_refinement, use_cache):
                     yield f"data: {json.dumps(update, ensure_ascii=False)}\n\n"
             except Exception as e:
                 error_message = str(e)

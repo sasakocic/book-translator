@@ -301,6 +301,7 @@
             const [sourceLanguage, setSourceLanguage] = React.useState('');
             const [targetLanguage, setTargetLanguage] = React.useState('');
             const [selectedModel, setSelectedModel] = React.useState('');
+            const [useCache, setUseCache] = React.useState(true);
             const [inputFile, setInputFile] = React.useState(null);
             const [inputText, setInputText] = React.useState('');
             const [inputMode, setInputMode] = React.useState('file'); // 'file' or 'text'
@@ -484,6 +485,7 @@
             formData.append('sourceLanguage', sourceLanguage);
             formData.append('targetLanguage', targetLanguage);
             formData.append('model', selectedModel);
+            formData.append('useCache', useCache.toString());
             
             try {
               const response = await fetch(`${API_URL}/translate`, {
@@ -691,6 +693,20 @@
               placeholder="Google Translate Only (Fast)"
               error={formErrors.model}
               />
+              </div>
+              
+              <div>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={useCache}
+                  onChange={(e) => setUseCache(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Use Cache <span className="text-gray-500 font-normal">(Uncheck to test different models/settings)</span>
+                </span>
+              </label>
               </div>
               </div>
               
