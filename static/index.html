@@ -144,13 +144,15 @@
             </button>
         );
 
-        const Select = ({ value, onChange, options, placeholder, error }) => (
+        const Select = ({ value, onChange, options, placeholder, error, disabled = false }) => (
             <div>
                 <select
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
                     className={`w-full p-2 border rounded-md transition-colors duration-200
-                              ${error ? 'border-red-500' : 'border-gray-300'}`}
+                              ${error ? 'border-red-500' : 'border-gray-300'}
+                              ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 >
                     <option value="">{placeholder}</option>
                     {options.map(opt => (
@@ -300,6 +302,7 @@
             // State
             const [sourceLanguage, setSourceLanguage] = React.useState('');
             const [targetLanguage, setTargetLanguage] = React.useState('');
+            const [selectedProvider, setSelectedProvider] = React.useState('ollama');
             const [selectedModel, setSelectedModel] = React.useState('');
             const [useCache, setUseCache] = React.useState(true);
             const [inputFile, setInputFile] = React.useState(null);
@@ -307,6 +310,7 @@
             const [inputMode, setInputMode] = React.useState('file'); // 'file' or 'text'
             const [isTranslating, setIsTranslating] = React.useState(false);
             const [progress, setProgress] = React.useState(0);
+            const [providers, setProviders] = React.useState([]);
             const [models, setModels] = React.useState([]);
             const [originalText, setOriginalText] = React.useState('');
             const [translatedText, setTranslatedText] = React.useState('');
@@ -332,12 +336,20 @@
                 { code: 'ja', name: 'Japanese' }
             ];
             
-          // Effects// Effects
+          // Effects
           React.useEffect(() => {
+            fetchProviders();
             fetchModels();
             fetchTranslations();
             fetchMetrics();
           }, []);
+          
+          React.useEffect(() => {
+            if (selectedProvider) {
+              fetchModelsByProvider(selectedProvider);
+              setSelectedModel(''); // Reset model selection when provider changes
+            }
+          }, [selectedProvider]);
           
           useInterval(() => {
             if (activeTab === 'history') {
@@ -347,10 +359,38 @@
           }, 30000);
           
           // API calls
+          const fetchProviders = async () => {
+            try {
+              setError(null);
+              const response = await fetch(`${API_URL}/providers`);
+              
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              
+              const data = await response.json();
+              if (data.providers && data.providers.length > 0) {
+                setProviders(data.providers);
+                // Set the first available provider as default if none is selected
+                if (!selectedProvider || !data.providers.find(p => p.id === selectedProvider)) {
+                  setSelectedProvider(data.providers[0].id);
+                }
+              } else {
+                setProviders([]);
+                setModels([]);
+                console.warn('No AI providers are currently available');
+              }
+            } catch (error) {
+              console.error('Error fetching providers:', error);
+              setProviders([]);
+              setModels([]);
+            }
+          };
+          
           const fetchModels = async () => {
             try {
               setError(null);
-              const response = await fetch(`${API_URL}/models`);
+              const response = await fetch(`${API_URL}/models?provider=${selectedProvider}`);
               
               if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -363,6 +403,28 @@
             } catch (error) {
               console.error('Error fetching models:', error);
               setError('Failed to load models. Please check if the server is running.');
+            }
+          };
+          
+          const fetchModelsByProvider = async (provider) => {
+            try {
+              setError(null);
+              const response = await fetch(`${API_URL}/models/${provider}`);
+              
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              
+              const data = await response.json();
+              if (data.models) {
+                setModels(data.models);
+              } else if (data.error) {
+                setModels([]);
+                console.warn(`Provider ${provider}: ${data.error}`);
+              }
+            } catch (error) {
+              console.error(`Error fetching models for ${provider}:`, error);
+              setModels([]);
             }
           };
           
@@ -484,7 +546,8 @@
             
             formData.append('sourceLanguage', sourceLanguage);
             formData.append('targetLanguage', targetLanguage);
-            formData.append('model', selectedModel);
+            formData.append('provider', selectedProvider || 'ollama');
+            formData.append('model', selectedModel || '');
             formData.append('useCache', useCache.toString());
             
             try {
@@ -596,6 +659,9 @@
               
               setSourceLanguage(translation.source_lang);
               setTargetLanguage(translation.target_lang);
+              // Try to extract provider from model name or default to ollama
+              const provider = translation.provider || 'ollama';
+              setSelectedProvider(provider);
               setSelectedModel(translation.model);
               setProgress(translation.progress);
               setOriginalText(translation.original_text);
@@ -641,6 +707,11 @@
             }).format(date);
           };
           
+          const getProviderName = (providerId) => {
+            const provider = providers.find(p => p.id === providerId);
+            return provider ? provider.name : providerId;
+          };
+          
           return (
             <div className="space-y-6">
             {metrics && <MetricsDisplay metrics={metrics} />}
@@ -670,7 +741,7 @@
             
             {activeTab === 'new' ? (
               <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
               <div>
               <label className="block text-sm font-medium mb-2">Source Language</label>
               <Select 
@@ -697,17 +768,67 @@
               error={formErrors.targetLanguage}
               />
               </div>
-              
-              <div>
-              <label className="block text-sm font-medium mb-2">Select Model <span className="text-gray-500 font-normal">(Optional)</span></label>
-              <Select
-              value={selectedModel}
-              onChange={setSelectedModel}
-              options={models.map(m => ({ code: m.name, name: m.name }))}
-              placeholder="Google Translate Only (Fast)"
-              error={formErrors.model}
-              />
               </div>
+              
+              {providers.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4">
+                <div>
+                <label className="block text-sm font-medium mb-2">AI Provider <span className="text-gray-500 font-normal">(Optional)</span></label>
+                <Select
+                value={selectedProvider}
+                onChange={setSelectedProvider}
+                options={providers.map(p => ({ code: p.id, name: p.name }))}
+                placeholder="Select AI Provider"
+                error={formErrors.provider}
+                />
+                </div>
+                
+                <div>
+                <label className="block text-sm font-medium mb-2">Select Model <span className="text-gray-500 font-normal">(Optional)</span></label>
+                <Select
+                value={selectedModel}
+                onChange={setSelectedModel}
+                options={models.map(m => ({ code: m.name, name: m.name }))}
+                placeholder={models.length === 0 ? "No models available - Google Translate Only" : "Google Translate Only (Fast)"}
+                error={formErrors.model}
+                disabled={models.length === 0}
+                />
+                {models.length === 0 && selectedProvider && (
+                  <p className="text-sm text-yellow-600 mt-1">
+                    No models available for {getProviderName(selectedProvider)}. Check if the service is running.
+                  </p>
+                )}
+                </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        No AI Providers Available
+                      </h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>No AI services (Ollama or LM Studio) are currently running. You can still use Google Translate for basic translation.</p>
+                        <p className="mt-1">To enable AI-powered refinement, start Ollama or LM Studio and click the refresh button below.</p>
+                      </div>
+                      <div className="mt-3">
+                        <Button 
+                          onClick={fetchProviders} 
+                          className="text-sm px-3 py-1 bg-yellow-600 hover:bg-yellow-700"
+                        >
+                          <Icons.Refresh className="w-4 h-4 mr-1" />
+                          Refresh Providers
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div>
               <label className="flex items-center space-x-2">
@@ -721,7 +842,6 @@
                   Use Cache <span className="text-gray-500 font-normal">(Uncheck to test different models/settings)</span>
                 </span>
               </label>
-              </div>
               </div>
               
               {/* Input Mode Toggle */}

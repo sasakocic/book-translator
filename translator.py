@@ -32,6 +32,10 @@ LOG_FOLDER = 'logs'
 DB_PATH = 'translations.db'
 CACHE_DB_PATH = 'cache.db'
 
+# Provider URLs
+OLLAMA_URL = "http://localhost:11434"
+LMSTUDIO_URL = "http://localhost:1234"
+
 # Create necessary directories
 for folder in [UPLOAD_FOLDER, TRANSLATIONS_FOLDER, STATIC_FOLDER, LOG_FOLDER]:
     os.makedirs(folder, exist_ok=True)
@@ -279,10 +283,18 @@ def init_db():
 init_db()
 
 class BookTranslator:
-    def __init__(self, model_name: str = "aya-expanse:32b", chunk_size: int = 1000):
+    def __init__(self, model_name: str = "aya-expanse:32b", provider: str = "ollama", chunk_size: int = 1000):
         self.model_name = model_name
-        self.api_url = "http://localhost:11434/api/generate"
+        self.provider = provider
         self.chunk_size = chunk_size
+        
+        # Set API URL based on provider
+        if provider == "lmstudio":
+            self.api_url = f"{LMSTUDIO_URL}/v1/chat/completions"
+            self.models_url = f"{LMSTUDIO_URL}/v1/models"
+        else:  # default to ollama
+            self.api_url = f"{OLLAMA_URL}/api/generate"
+            self.models_url = f"{OLLAMA_URL}/api/tags"
         
         # Serbian Cyrillic to Latin transliteration map
         self.cyrillic_to_latin = {
@@ -622,33 +634,60 @@ class BookTranslator:
         logger.translation_logger.info(f"Looking for key: '{target_lang.lower()}' -> Found: {'sr' in prompts}")
         logger.translation_logger.info(f"Using prompt: {prompt_text[:50]}...")
         
-        prompt = f"""{prompt_text}
+        if self.provider == "lmstudio":
+            # LMStudio uses OpenAI-compatible API
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "user", "content": f"{prompt_text}\n\n{text}"}
+                ],
+                "stream": False,
+                "temperature": 0.7
+            }
+            
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                timeout=(300, 300)
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result['choices'][0]['message']['content'].strip()
+        else:
+            # Ollama API
+            prompt = f"""{prompt_text}
     
     {text}"""
-        
-        payload = {
-            "model": self.model_name,
-            "prompt": prompt,
-            "stream": False
-        }
-        
-        response = self.session.post(
-            self.api_url,
-            json=payload,
-            timeout=(300, 300)
-        )
-        response.raise_for_status()
-        result = response.json()
-        return result['response'].strip()
+            
+            payload = {
+                "model": self.model_name,
+                "prompt": prompt,
+                "stream": False
+            }
+            
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                timeout=(300, 300)
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result['response'].strip()
     
     def get_available_models(self) -> List[str]:
         response = self.session.get(
-            "http://localhost:11434/api/tags",
+            self.models_url,
             timeout=(5, 5)
         )
         response.raise_for_status()
         models = response.json()
-        return [model['name'] for model in models['models']]
+        
+        if self.provider == "lmstudio":
+            # LMStudio returns OpenAI-compatible format
+            return [model['id'] for model in models['data']]
+        else:
+            # Ollama format
+            return [model['name'] for model in models['models']]
 
 # Translation Recovery
 class TranslationRecovery:
@@ -692,29 +731,35 @@ recovery = TranslationRecovery()
 
 # Health checking middleware
 @app.before_request
-def check_ollama():
-    # Skip Ollama check for Google Translate only requests
-    if request.endpoint not in ['health_check', 'translate']:
-        try:
-            response = requests.get("http://localhost:11434/api/tags", timeout=5)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            logger.app_logger.error(f"Ollama health check failed: {str(e)}")
-            return jsonify({
-                'error': 'Translation service is not available'
-            }), 503
-    elif request.endpoint == 'translate' and request.method == 'POST':
-        # Only check Ollama if a model is specified
+def check_services():
+    # Skip service checks for static files and basic endpoints
+    if request.endpoint in ['health_check', 'get_providers', 'serve_frontend', 'serve_static']:
+        return
+    
+    # For translate endpoint, only check the specific provider if a model is specified
+    if request.endpoint == 'translate' and request.method == 'POST':
         model_name = request.form.get('model')
-        if model_name and model_name.strip():
-            try:
-                response = requests.get("http://localhost:11434/api/tags", timeout=5)
-                response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                logger.app_logger.error(f"Ollama health check failed: {str(e)}")
-                return jsonify({
-                    'error': 'LLM service is not available. You can still use Google Translate only by leaving the model field empty.'
-                }), 503
+        provider = request.form.get('provider', 'ollama')
+        
+        # If no model specified, only Google Translate will be used
+        if not model_name or not model_name.strip():
+            return
+            
+        # Check the specific provider
+        try:
+            if provider == 'lmstudio':
+                response = requests.get(f"{LMSTUDIO_URL}/v1/models", timeout=3)
+            else:  # ollama
+                response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
+            
+            if response.status_code != 200:
+                raise requests.exceptions.RequestException(f"Service returned status {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            logger.app_logger.error(f"{provider.title()} health check failed: {str(e)}")
+            return jsonify({
+                'error': f'{provider.title()} service is not available. You can still use Google Translate only by leaving the model field empty.'
+            }), 503
 
 # Flask routes
 @app.route('/')
@@ -725,19 +770,65 @@ def serve_frontend():
 def serve_static(path):
     return send_from_directory('static', path)
 
+@app.route('/providers', methods=['GET'])
+@with_error_handling
+def get_providers():
+    providers = []
+    
+    # Check Ollama
+    try:
+        response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
+        if response.status_code == 200:
+            providers.append({'id': 'ollama', 'name': 'Ollama', 'url': OLLAMA_URL, 'status': 'available'})
+    except:
+        pass  # Ollama not available
+    
+    # Check LMStudio
+    try:
+        response = requests.get(f"{LMSTUDIO_URL}/v1/models", timeout=3)
+        if response.status_code == 200:
+            providers.append({'id': 'lmstudio', 'name': 'LM Studio', 'url': LMSTUDIO_URL, 'status': 'available'})
+    except:
+        pass  # LMStudio not available
+    
+    return jsonify({'providers': providers})
+
 @app.route('/models', methods=['GET'])
 @with_error_handling
 def get_models():
-    translator = BookTranslator()
-    available_models = translator.get_available_models()
-    models = []
-    for model_name in available_models:
-        models.append({
-            'name': model_name,
-            'size': 'Unknown',
-            'modified': 'Unknown'
-        })
-    return jsonify({'models': models})
+    provider = request.args.get('provider', 'ollama')
+    translator = BookTranslator(provider=provider)
+    try:
+        available_models = translator.get_available_models()
+        models = []
+        for model_name in available_models:
+            models.append({
+                'name': model_name,
+                'size': 'Unknown',
+                'modified': 'Unknown'
+            })
+        return jsonify({'models': models})
+    except Exception as e:
+        logger.app_logger.error(f"Error fetching models for {provider}: {str(e)}")
+        return jsonify({'models': [], 'error': f'Failed to connect to {provider}'})
+
+@app.route('/models/<provider>', methods=['GET'])
+@with_error_handling
+def get_models_by_provider(provider):
+    translator = BookTranslator(provider=provider)
+    try:
+        available_models = translator.get_available_models()
+        models = []
+        for model_name in available_models:
+            models.append({
+                'name': model_name,
+                'size': 'Unknown',
+                'modified': 'Unknown'
+            })
+        return jsonify({'models': models})
+    except Exception as e:
+        logger.app_logger.error(f"Error fetching models for {provider}: {str(e)}")
+        return jsonify({'models': [], 'error': f'Failed to connect to {provider}'})
 
 @app.route('/translations', methods=['GET'])
 @with_error_handling
@@ -776,6 +867,7 @@ def translate():
         source_lang = request.form.get('sourceLanguage')
         target_lang = request.form.get('targetLanguage')
         model_name = request.form.get('model')
+        provider = request.form.get('provider', 'ollama')
         use_cache = request.form.get('useCache', 'true').lower() == 'true'
         
         # Allow empty model_name for Google Translate only
@@ -811,7 +903,7 @@ def translate():
                   'in_progress', text, 'unknown'))  # Set genre to 'unknown'
             translation_id = cur.lastrowid
         
-        translator = BookTranslator(model_name=model_name)
+        translator = BookTranslator(model_name=model_name, provider=provider)
         
         def generate():
             try:
@@ -881,8 +973,23 @@ def get_metrics():
 @app.route('/health', methods=['GET'])
 def health_check():
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
-        response.raise_for_status()
+        # Check Ollama
+        ollama_status = 'disconnected'
+        try:
+            response = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
+            response.raise_for_status()
+            ollama_status = 'connected'
+        except:
+            pass
+        
+        # Check LMStudio
+        lmstudio_status = 'disconnected'
+        try:
+            response = requests.get(f"{LMSTUDIO_URL}/v1/models", timeout=5)
+            response.raise_for_status()
+            lmstudio_status = 'connected'
+        except:
+            pass
         
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute('SELECT 1')
@@ -893,7 +1000,8 @@ def health_check():
             
         return jsonify({
             'status': 'healthy',
-            'ollama': 'connected',
+            'ollama': ollama_status,
+            'lmstudio': lmstudio_status,
             'database': 'connected',
             'disk_usage': f"{disk_usage.percent}%"
         })
