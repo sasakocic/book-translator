@@ -215,6 +215,30 @@
             </div>
         );
 
+        const TokenUsage = ({ tokenUsage }) => {
+            if (!tokenUsage || tokenUsage.total_tokens === 0) return null;
+            
+            return (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Token Usage</h4>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="text-center">
+                            <div className="text-lg font-semibold text-blue-600">{tokenUsage.prompt_tokens.toLocaleString()}</div>
+                            <div className="text-xs text-gray-500">Prompt Tokens</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-lg font-semibold text-green-600">{tokenUsage.completion_tokens.toLocaleString()}</div>
+                            <div className="text-xs text-gray-500">Completion Tokens</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-lg font-semibold text-purple-600">{tokenUsage.total_tokens.toLocaleString()}</div>
+                            <div className="text-xs text-gray-500">Total Tokens</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const ProgressBar = ({ progress, currentChunk, totalChunks, stage }) => (
             <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
@@ -323,6 +347,7 @@
             const [currentChunk, setCurrentChunk] = React.useState(0);
             const [totalChunks, setTotalChunks] = React.useState(0);
             const [stage, setStage] = React.useState('');
+            const [tokenUsage, setTokenUsage] = React.useState(null);
             const [providers, setProviders] = React.useState([]);
             const [models, setModels] = React.useState([]);
             const [originalText, setOriginalText] = React.useState('');
@@ -546,6 +571,7 @@
             setCurrentChunk(0);
             setTotalChunks(0);
             setStage('');
+            setTokenUsage(null);
             setDetectedLanguage(null);
             setError(null);
             
@@ -611,6 +637,9 @@
                       }
                       if (data.stage) {
                         setStage(data.stage);
+                      }
+                      if (data.token_usage) {
+                        setTokenUsage(data.token_usage);
                       }
                       if (data.translated_text) {
                         setTranslatedText(data.translated_text);
@@ -914,12 +943,15 @@
               )}
               
               {isTranslating ? (
-                <ProgressBar 
-                  progress={progress} 
-                  currentChunk={currentChunk}
-                  totalChunks={totalChunks}
-                  stage={stage}
-                />
+                <div>
+                  <ProgressBar 
+                    progress={progress} 
+                    currentChunk={currentChunk}
+                    totalChunks={totalChunks}
+                    stage={stage}
+                  />
+                  <TokenUsage tokenUsage={tokenUsage} />
+                </div>
               ) : (
                 <Button
                 onClick={handleTranslate}
@@ -950,6 +982,11 @@
                 <TextPreview text={translatedText} />
               </div>
               </div>
+              
+              {/* Show final token usage after translation is complete */}
+              {!isTranslating && tokenUsage && tokenUsage.total_tokens > 0 && (
+                <TokenUsage tokenUsage={tokenUsage} />
+              )}
               </div>
             ) : (
               <div className="space-y-4">

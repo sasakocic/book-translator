@@ -287,6 +287,11 @@ class BookTranslator:
         self.model_name = model_name
         self.provider = provider
         self.chunk_size = chunk_size
+        self.total_token_usage = {
+            'prompt_tokens': 0,
+            'completion_tokens': 0,
+            'total_tokens': 0
+        }
         
         # Set API URL based on provider
         if provider == "lmstudio":
@@ -459,7 +464,8 @@ class BookTranslator:
                                 'machine_translation': '\n\n'.join(machine_translations),
                                 'translated_text': '\n\n'.join(translated_chunks),
                                 'current_chunk': i,
-                                'total_chunks': total_chunks
+                                'total_chunks': total_chunks,
+                                'token_usage': self.total_token_usage.copy()
                             }
                             
                             logger.translation_logger.info(f"Yielding Google-only progress: {final_progress:.1f}% - Chunk {i}/{total_chunks}")
@@ -523,7 +529,8 @@ class BookTranslator:
                         'machine_translation': '\n\n'.join(machine_translations),
                         'translated_text': '\n\n'.join(translated_chunks),
                         'current_chunk': current_chunk,
-                        'total_chunks': total_chunks_display
+                        'total_chunks': total_chunks_display,
+                        'token_usage': self.total_token_usage.copy()
                     }
                     
                     logger.translation_logger.info(f"Yielding progress update: {progress:.1f}% - Chunk {current_chunk}/{total_chunks_display}")
@@ -590,7 +597,8 @@ class BookTranslator:
                 'progress': 100,
                 'machine_translation': '\n\n'.join(machine_translations),
                 'translated_text': '\n\n'.join(translated_chunks),
-                'status': 'completed'
+                'status': 'completed',
+                'token_usage': self.total_token_usage.copy()
             }
             
         except Exception as e:
@@ -664,6 +672,15 @@ class BookTranslator:
             )
             response.raise_for_status()
             result = response.json()
+            
+            # Track token usage for LMStudio
+            if 'usage' in result:
+                usage = result['usage']
+                self.total_token_usage['prompt_tokens'] += usage.get('prompt_tokens', 0)
+                self.total_token_usage['completion_tokens'] += usage.get('completion_tokens', 0)
+                self.total_token_usage['total_tokens'] += usage.get('total_tokens', 0)
+                logger.translation_logger.info(f"LMStudio token usage: {usage}")
+            
             return result['choices'][0]['message']['content'].strip()
         else:
             # Ollama API
@@ -684,6 +701,19 @@ class BookTranslator:
             )
             response.raise_for_status()
             result = response.json()
+            
+            # Track token usage for Ollama (if available)
+            if 'prompt_eval_count' in result and 'eval_count' in result:
+                prompt_tokens = result.get('prompt_eval_count', 0)
+                completion_tokens = result.get('eval_count', 0)
+                total_tokens = prompt_tokens + completion_tokens
+                
+                self.total_token_usage['prompt_tokens'] += prompt_tokens
+                self.total_token_usage['completion_tokens'] += completion_tokens
+                self.total_token_usage['total_tokens'] += total_tokens
+                
+                logger.translation_logger.info(f"Ollama token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
+            
             return result['response'].strip()
     
     def get_available_models(self) -> List[str]:
