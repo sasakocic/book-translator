@@ -342,6 +342,7 @@
             const [inputFile, setInputFile] = React.useState(null);
             const [inputText, setInputText] = React.useState('');
             const [inputMode, setInputMode] = React.useState('file'); // 'file' or 'text'
+            const [translationMode, setTranslationMode] = React.useState('two-stage'); // 'two-stage', 'google-only', 'llm-only'
             const [isTranslating, setIsTranslating] = React.useState(false);
             const [progress, setProgress] = React.useState(0);
             const [currentChunk, setCurrentChunk] = React.useState(0);
@@ -591,6 +592,7 @@
             formData.append('provider', selectedProvider || 'ollama');
             formData.append('model', selectedModel || '');
             formData.append('useCache', useCache.toString());
+            formData.append('translationMode', translationMode);
             
             try {
               const response = await fetch(`${API_URL}/translate`, {
@@ -826,7 +828,7 @@
               </div>
               </div>
               
-              {providers.length > 0 ? (
+              {(providers.length > 0 && translationMode !== 'google-only') ? (
                 <div className="grid grid-cols-2 gap-4">
                 <div>
                 <label className="block text-sm font-medium mb-2">AI Provider <span className="text-gray-500 font-normal">(Optional)</span></label>
@@ -856,7 +858,7 @@
                 )}
                 </div>
                 </div>
-              ) : (
+              ) : translationMode !== 'google-only' ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -869,8 +871,8 @@
                         No AI Providers Available
                       </h3>
                       <div className="mt-2 text-sm text-yellow-700">
-                        <p>No AI services (Ollama or LM Studio) are currently running. You can still use Google Translate for basic translation.</p>
-                        <p className="mt-1">To enable AI-powered refinement, start Ollama or LM Studio and click the refresh button below.</p>
+                        <p>No AI services (Ollama or LM Studio) are currently running. Switch to "Google Translate only" mode or start an AI service.</p>
+                        <p className="mt-1">To enable AI-powered translation, start Ollama or LM Studio and click the refresh button below.</p>
                       </div>
                       <div className="mt-3">
                         <Button 
@@ -884,8 +886,52 @@
                     </div>
                   </div>
                 </div>
-              )}
+              ) : null}
               
+              {/* Translation Mode Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Translation Mode</label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="two-stage"
+                      checked={translationMode === 'two-stage'}
+                      onChange={(e) => setTranslationMode(e.target.value)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">
+                      <strong>Two-stage (Recommended):</strong> Google Translate + LLM refinement for best quality
+                    </span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="google-only"
+                      checked={translationMode === 'google-only'}
+                      onChange={(e) => setTranslationMode(e.target.value)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">
+                      <strong>Google Translate only:</strong> Fast basic translation (no AI model required)
+                    </span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="llm-only"
+                      checked={translationMode === 'llm-only'}
+                      onChange={(e) => setTranslationMode(e.target.value)}
+                      className="mr-2"
+                      disabled={providers.length === 0}
+                    />
+                    <span className={`text-sm ${providers.length === 0 ? 'text-gray-400' : ''}`}>
+                      <strong>LLM only:</strong> Direct AI translation (requires AI model)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               <div>
               <label className="flex items-center space-x-2">
                 <input
@@ -957,7 +1003,8 @@
                   <Button
                   onClick={handleTranslate}
                   disabled={!sourceLanguage || !targetLanguage || 
-                           (inputMode === 'file' ? !inputFile : !inputText.trim())}
+                           (inputMode === 'file' ? !inputFile : !inputText.trim()) ||
+                           ((translationMode === 'two-stage' || translationMode === 'llm-only') && (!selectedModel || providers.length === 0))}
                   className="flex-1"
                   >
                   Start Translation

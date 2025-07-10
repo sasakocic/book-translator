@@ -396,24 +396,33 @@ class BookTranslator:
         
         return result
 
-    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int, skip_llm_refinement: bool = False, use_cache: bool = True):
+    def translate_text(self, text: str, source_lang: str, target_lang: str, translation_id: int, skip_llm_refinement: bool = False, use_cache: bool = True, skip_google_translate: bool = False):
         start_time = time.time()
         success = False
         
         try:
-            # Use small chunks for Google Translate (API limit)
-            chunks = self.split_into_chunks(text, for_llm=False)
-            total_chunks = len(chunks)
-            translated_chunks = []
-            machine_translations = []
-            
-            logger.translation_logger.info(f"Starting translation {translation_id} with {total_chunks} chunks")
-            
-            # Initialize Google translator
-            translator = GoogleTranslator(
-                source=source_lang if source_lang != 'auto' else 'auto',
-                target=target_lang
-            )
+            if skip_google_translate:
+                # LLM-only mode: Use larger chunks optimized for LLM
+                chunks = self.split_into_chunks(text, for_llm=True)
+                total_chunks = len(chunks)
+                translated_chunks = []
+                machine_translations = []  # Empty for LLM-only mode
+                
+                logger.translation_logger.info(f"Starting LLM-only translation {translation_id} with {total_chunks} chunks")
+            else:
+                # Use small chunks for Google Translate (API limit)
+                chunks = self.split_into_chunks(text, for_llm=False)
+                total_chunks = len(chunks)
+                translated_chunks = []
+                machine_translations = []
+                
+                logger.translation_logger.info(f"Starting translation {translation_id} with {total_chunks} chunks")
+                
+                # Initialize Google translator
+                translator = GoogleTranslator(
+                    source=source_lang if source_lang != 'auto' else 'auto',
+                    target=target_lang
+                )
             
             # Update database with total chunks (same for both modes now)
             with sqlite3.connect(DB_PATH) as conn:
@@ -431,9 +440,28 @@ class BookTranslator:
                         cached_result = cache.get_cached_translation(chunk, source_lang, target_lang)
                     
                     if cached_result:
-                        machine_translations.append(cached_result['machine_translation'])
+                        if not skip_google_translate:
+                            machine_translations.append(cached_result['machine_translation'])
                         translated_chunks.append(cached_result['translated_text'])
                         logger.translation_logger.info(f"Cache hit for chunk {i}")
+                    elif skip_google_translate:
+                        # LLM-only mode: Direct LLM translation
+                        logger.translation_logger.info(f"LLM-only translating chunk {i}/{total_chunks}")
+                        llm_translation = self.direct_llm_translate(chunk, source_lang, target_lang)
+                        
+                        # Convert Serbian Cyrillic to Latin if needed
+                        if target_lang.lower() == 'sr':
+                            llm_translation = self.transliterate_serbian(llm_translation)
+                            logger.translation_logger.info(f"Transliterated LLM output to Latin: {llm_translation[:50]}...")
+                        
+                        translated_chunks.append(llm_translation)
+                        
+                        # Cache the results (no machine translation for LLM-only)
+                        if use_cache:
+                            cache.cache_translation(
+                                chunk, llm_translation, llm_translation,
+                                source_lang, target_lang
+                            )
                     else:
                         # Stage 1: Google Translate
                         logger.translation_logger.info(f"Translating chunk {i}/{total_chunks}")
@@ -493,7 +521,13 @@ class BookTranslator:
                                 )
                     
                     # Update progress and database (single update per chunk)
-                    if not skip_llm_refinement:
+                    if skip_google_translate:
+                        # For LLM-only mode
+                        progress = (i / total_chunks) * 100
+                        current_chunk = i
+                        total_chunks_display = total_chunks
+                        stage = 'llm_only'
+                    elif not skip_llm_refinement:
                         # For two-stage: each completed chunk represents 1/total_chunks of 100%
                         progress = (i / total_chunks) * 100
                         current_chunk = i
@@ -687,6 +721,100 @@ class BookTranslator:
             prompt = f"""{prompt_text}
     
     {text}"""
+            
+            payload = {
+                "model": self.model_name,
+                "prompt": prompt,
+                "stream": False
+            }
+            
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                timeout=(300, 300)
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Track token usage for Ollama (if available)
+            if 'prompt_eval_count' in result and 'eval_count' in result:
+                prompt_tokens = result.get('prompt_eval_count', 0)
+                completion_tokens = result.get('eval_count', 0)
+                total_tokens = prompt_tokens + completion_tokens
+                
+                self.total_token_usage['prompt_tokens'] += prompt_tokens
+                self.total_token_usage['completion_tokens'] += completion_tokens
+                self.total_token_usage['total_tokens'] += total_tokens
+                
+                logger.translation_logger.info(f"Ollama token usage - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
+            
+            return result['response'].strip()
+    
+    def direct_llm_translate(self, text: str, source_lang: str, target_lang: str) -> str:
+        """
+        Direct LLM translation without Google Translate preprocessing.
+        
+        Args:
+            text (str): The original text to translate
+            source_lang (str): The source language code
+            target_lang (str): The target language code
+        
+        Returns:
+            str: The translated text
+        """
+        # Simplified, clear prompts for direct translation
+        prompts = {
+            'en': f'Translate from {source_lang} to English. Keep the same formatting and structure. Only return the translation:\n\n',
+            'es': f'Traduce de {source_lang} al español. Mantén el mismo formato y estructura. Solo devuelve la traducción:\n\n',
+            'fr': f'Traduisez de {source_lang} vers le français. Gardez le même format et structure. Retournez seulement la traduction:\n\n',
+            'de': f'Übersetze von {source_lang} ins Deutsche. Behalte das gleiche Format und die Struktur bei. Gib nur die Übersetzung zurück:\n\n',
+            'it': f'Traduci da {source_lang} all\'italiano. Mantieni lo stesso formato e struttura. Restituisci solo la traduzione:\n\n',
+            'pt': f'Traduza de {source_lang} para português. Mantenha o mesmo formato e estrutura. Retorne apenas a tradução:\n\n',
+            'ru': f'Переведи с {source_lang} на русский. Сохрани тот же формат и структуру. Верни только перевод:\n\n',
+            'zh': f'从{source_lang}翻译成中文。保持相同的格式和结构。只返回翻译：\n\n',
+            'ja': f'{source_lang}から日本語に翻訳してください。同じ形式と構造を保ってください。翻訳のみを返してください：\n\n',
+            'ko': f'{source_lang}에서 한국어로 번역하세요. 같은 형식과 구조를 유지하세요. 번역만 반환하세요:\n\n',
+            'sr': f'Prevedi sa {source_lang} na srpski (latinica). Zadrži isti format i strukturu. Vrati samo prevod:\n\n',
+            'hr': f'Prevedi s {source_lang} na hrvatski. Zadrži isti format i strukturu. Vrati samo prijevod:\n\n'
+        }
+        
+        # Get prompt for target language or use English as fallback
+        prompt_text = prompts.get(target_lang.lower(), f'Translate from {source_lang} to {target_lang}. Keep the same formatting. Only return the translation:\n\n')
+        
+        logger.translation_logger.info(f"Direct LLM translation from '{source_lang}' to '{target_lang}'")
+        logger.translation_logger.info(f"Using prompt: {prompt_text[:50]}...")
+        
+        if self.provider == "lmstudio":
+            # LMStudio uses OpenAI-compatible API
+            payload = {
+                "model": self.model_name,
+                "messages": [
+                    {"role": "user", "content": f"{prompt_text}\n\n{text}"}
+                ],
+                "stream": False,
+                "temperature": 0.7
+            }
+            
+            response = self.session.post(
+                self.api_url,
+                json=payload,
+                timeout=(300, 300)
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Track token usage for LMStudio
+            if 'usage' in result:
+                usage = result['usage']
+                self.total_token_usage['prompt_tokens'] += usage.get('prompt_tokens', 0)
+                self.total_token_usage['completion_tokens'] += usage.get('completion_tokens', 0)
+                self.total_token_usage['total_tokens'] += usage.get('total_tokens', 0)
+                logger.translation_logger.info(f"LMStudio token usage: {usage}")
+            
+            return result['choices'][0]['message']['content'].strip()
+        else:
+            # Ollama API
+            prompt = f"{prompt_text}{text}"
             
             payload = {
                 "model": self.model_name,
@@ -911,15 +1039,28 @@ def translate():
         model_name = request.form.get('model')
         provider = request.form.get('provider', 'ollama')
         use_cache = request.form.get('useCache', 'true').lower() == 'true'
+        translation_mode = request.form.get('translationMode', 'two-stage')
         
         # Allow empty model_name for Google Translate only
         if not all([file, source_lang, target_lang]):
             return jsonify({'error': 'Missing required parameters'}), 400
         
-        # Determine if we should skip LLM refinement
-        skip_llm_refinement = not model_name or model_name.strip() == ''
-        if skip_llm_refinement:
+        # Determine translation mode
+        if translation_mode == 'google-only':
+            skip_llm_refinement = True
+            skip_google_translate = False
             model_name = 'google_translate_only'  # Set a placeholder for database
+        elif translation_mode == 'llm-only':
+            skip_llm_refinement = False
+            skip_google_translate = True
+            if not model_name or model_name.strip() == '':
+                return jsonify({'error': 'Model is required for LLM-only translation mode'}), 400
+        else:  # two-stage (default)
+            skip_llm_refinement = False
+            skip_google_translate = False
+            if not model_name or model_name.strip() == '':
+                skip_llm_refinement = True
+                model_name = 'google_translate_only'
         
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
@@ -949,7 +1090,7 @@ def translate():
         
         def generate():
             try:
-                for update in translator.translate_text(text, source_lang, target_lang, translation_id, skip_llm_refinement, use_cache):
+                for update in translator.translate_text(text, source_lang, target_lang, translation_id, skip_llm_refinement, use_cache, skip_google_translate):
                     yield f"data: {json.dumps(update, ensure_ascii=False)}\n\n"
             except Exception as e:
                 error_message = str(e)
