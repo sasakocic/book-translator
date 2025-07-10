@@ -953,31 +953,33 @@
                   <TokenUsage tokenUsage={tokenUsage} />
                 </div>
               ) : (
-                <Button
-                onClick={handleTranslate}
-                disabled={!sourceLanguage || !targetLanguage || 
-                         (inputMode === 'file' ? !inputFile : !inputText.trim())}
-                className="w-full"
-                >
-                Start Translation
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                  onClick={handleTranslate}
+                  disabled={!sourceLanguage || !targetLanguage || 
+                           (inputMode === 'file' ? !inputFile : !inputText.trim())}
+                  className="flex-1"
+                  >
+                  Start Translation
+                  </Button>
+                  {translatedText && (
+                    <Button
+                      onClick={handleDownloadText}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 flex items-center whitespace-nowrap"
+                      title="Download translation as text file"
+                    >
+                      <Icons.Download className="w-4 h-4 mr-2" />
+                      Download
+                    </Button>
+                  )}
+                </div>
               )}
               
               <div className="grid grid-cols-2 gap-4">
               <TextPreview title="Original Text" text={originalText} />
               <div>
-                <div className="flex justify-between items-center mb-2">
+                <div className="mb-2">
                   <h3 className="text-lg font-medium">Translated Text</h3>
-                  {translatedText && (
-                    <Button
-                      onClick={handleDownloadText}
-                      className="text-sm px-3 py-1"
-                      title="Download translation as text file"
-                    >
-                      <Icons.Download className="w-4 h-4 mr-1" />
-                      Download
-                    </Button>
-                  )}
                 </div>
                 <TextPreview text={translatedText} />
               </div>
