@@ -302,9 +302,19 @@ class BookTranslator:
             pool_maxsize=10
         ))
 
-    def split_into_chunks(self, text: str) -> list:
-        """Split text into smaller chunks for translation."""
-        MAX_LENGTH = 4500  # Google Translate limit
+    def split_into_chunks(self, text: str, for_llm: bool = False) -> list:
+        """Split text into chunks for translation.
+        
+        Args:
+            text: Text to split
+            for_llm: If True, use larger chunks optimized for 128K token LLMs
+        """
+        if for_llm:
+            # Optimize for 128K token models (~512K characters)
+            # Use ~100K characters per chunk to stay well within limits
+            MAX_LENGTH = 100000
+        else:
+            MAX_LENGTH = 4500  # Google Translate limit
         paragraphs = text.split('\n\n')
         chunks = []
         current_chunk = []
@@ -374,7 +384,8 @@ class BookTranslator:
         success = False
         
         try:
-            chunks = self.split_into_chunks(text)
+            # Use small chunks for Google Translate (API limit)
+            chunks = self.split_into_chunks(text, for_llm=False)
             total_chunks = len(chunks)
             translated_chunks = []
             machine_translations = []
@@ -442,6 +453,12 @@ class BookTranslator:
                             # Stage 2: Literary refinement
                             logger.translation_logger.info(f"Refining chunk {i}/{total_chunks}")
                             refined_translation = self.refine_translation(google_translation, target_lang)
+                            
+                            # Convert Serbian Cyrillic to Latin if needed (for LLM output)
+                            if target_lang.lower() == 'sr':
+                                refined_translation = self.transliterate_serbian(refined_translation)
+                                logger.translation_logger.info(f"Transliterated LLM output to Latin: {refined_translation[:50]}...")
+                            
                             translated_chunks.append(refined_translation)
                             
                             # Cache the results
@@ -499,6 +516,41 @@ class BookTranslator:
                     
                 time.sleep(1)  # Rate limiting
                 
+            # Optimize LLM refinement for 128K context if not skipping LLM
+            if not skip_llm_refinement and len(machine_translations) > 1:
+                logger.translation_logger.info("Optimizing translation with 128K context window...")
+                
+                # Create larger chunks for LLM processing (up to ~100K characters)
+                llm_chunks = self.split_into_chunks('\n\n'.join(machine_translations), for_llm=True)
+                optimized_translations = []
+                
+                for i, llm_chunk in enumerate(llm_chunks):
+                    logger.translation_logger.info(f"LLM optimization chunk {i+1}/{len(llm_chunks)}")
+                    optimized_chunk = self.refine_translation(llm_chunk, target_lang)
+                    
+                    # Convert Serbian Cyrillic to Latin if needed (for optimized LLM output)
+                    if target_lang.lower() == 'sr':
+                        optimized_chunk = self.transliterate_serbian(optimized_chunk)
+                        logger.translation_logger.info(f"Transliterated optimized chunk to Latin: {optimized_chunk[:50]}...")
+                    
+                    optimized_translations.append(optimized_chunk)
+                
+                # Replace the translated_chunks with optimized version
+                final_translation = '\n\n'.join(optimized_translations)
+                # Split back to match original chunk structure for consistency
+                translated_chunks = final_translation.split('\n\n')
+                
+                # Update database with optimized translation
+                with sqlite3.connect(DB_PATH) as conn:
+                    conn.execute('''
+                        UPDATE translations 
+                        SET translated_text = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', ('\n\n'.join(translated_chunks), translation_id))
+                
+                logger.translation_logger.info("128K context optimization completed")
+
             # Mark translation as completed
             with sqlite3.connect(DB_PATH) as conn:
                 conn.execute('''
@@ -558,7 +610,7 @@ class BookTranslator:
             'zh': '改善这段文字，使其在中文中更加自然。仅返回改善后的文字：',
             'ja': 'この文章を日本語としてより自然に聞こえるように改善してください。改善されたテキストのみを返してください：',
             'ko': '이 텍스트를 한국어로 더 자연스럽게 들리도록 개선하십시오. 개선된 텍스트만 반환하십시오:',
-            'sr': 'Poboljšajte ovaj tekst da zvuči prirodnije na srpskom jeziku. Vratite samo poboljšani tekst:',
+            'sr': 'Poboljšajte ovaj tekst da zvuči prirodnije na srpskom jeziku. VAŽNO: Koristite SAMO latinicu (ne ćirilicu). Vratite samo poboljšani tekst:',
             'hr': 'Poboljšajte ovaj tekst da zvuči prirodnije na hrvatskom jeziku. Vratite samo poboljšani tekst:'
         }
         
