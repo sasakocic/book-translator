@@ -216,7 +216,7 @@
         );
 
         const TokenUsage = ({ tokenUsage }) => {
-            if (!tokenUsage || tokenUsage.total_tokens === 0) return null;
+            if (!tokenUsage) return null;
             
             return (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
@@ -984,7 +984,7 @@
               </div>
               
               {/* Show final token usage after translation is complete */}
-              {!isTranslating && tokenUsage && tokenUsage.total_tokens > 0 && (
+              {!isTranslating && tokenUsage && (
                 <TokenUsage tokenUsage={tokenUsage} />
               )}
               </div>
