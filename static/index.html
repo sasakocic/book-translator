@@ -215,13 +215,23 @@
             </div>
         );
 
-        const ProgressBar = ({ progress }) => (
+        const ProgressBar = ({ progress, currentChunk, totalChunks, stage }) => (
             <div className="relative pt-1">
                 <div className="flex mb-2 items-center justify-between">
                     <div>
                         <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
                             Translation in progress
                         </span>
+                        {currentChunk && totalChunks && (
+                            <span className="text-xs text-gray-600 ml-2">
+                                Chunk {currentChunk}/{totalChunks}
+                            </span>
+                        )}
+                        {stage && (
+                            <span className="text-xs text-gray-500 ml-2">
+                                ({stage})
+                            </span>
+                        )}
                     </div>
                     <div className="text-right">
                         <span className="text-xs font-semibold inline-block text-blue-600">
@@ -310,6 +320,9 @@
             const [inputMode, setInputMode] = React.useState('file'); // 'file' or 'text'
             const [isTranslating, setIsTranslating] = React.useState(false);
             const [progress, setProgress] = React.useState(0);
+            const [currentChunk, setCurrentChunk] = React.useState(0);
+            const [totalChunks, setTotalChunks] = React.useState(0);
+            const [stage, setStage] = React.useState('');
             const [providers, setProviders] = React.useState([]);
             const [models, setModels] = React.useState([]);
             const [originalText, setOriginalText] = React.useState('');
@@ -530,6 +543,9 @@
             
             setIsTranslating(true);
             setProgress(0);
+            setCurrentChunk(0);
+            setTotalChunks(0);
+            setStage('');
             setDetectedLanguage(null);
             setError(null);
             
@@ -577,13 +593,24 @@
                   if (line.trim() && line.startsWith('data: ')) {
                     try {
                       const data = JSON.parse(line.slice(6).trim());
+                      console.log('SSE Update:', data); // Debug logging
                       if (data.error) {
                         setError(`Translation error: ${data.error}`);
                         setIsTranslating(false);
                         return;
                       }
                       if (data.progress !== undefined) {
+                        console.log('Progress update:', data.progress); // Debug logging
                         setProgress(data.progress);
+                      }
+                      if (data.current_chunk !== undefined) {
+                        setCurrentChunk(data.current_chunk);
+                      }
+                      if (data.total_chunks !== undefined) {
+                        setTotalChunks(data.total_chunks);
+                      }
+                      if (data.stage) {
+                        setStage(data.stage);
                       }
                       if (data.translated_text) {
                         setTranslatedText(data.translated_text);
@@ -887,7 +914,12 @@
               )}
               
               {isTranslating ? (
-                <ProgressBar progress={progress} />
+                <ProgressBar 
+                  progress={progress} 
+                  currentChunk={currentChunk}
+                  totalChunks={totalChunks}
+                  stage={stage}
+                />
               ) : (
                 <Button
                 onClick={handleTranslate}

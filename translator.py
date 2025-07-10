@@ -453,7 +453,7 @@ class BookTranslator:
                                     source_lang, target_lang
                                 )
                             
-                            yield {
+                            progress_update = {
                                 'progress': final_progress,
                                 'stage': 'google_translate_only',
                                 'machine_translation': '\n\n'.join(machine_translations),
@@ -461,6 +461,12 @@ class BookTranslator:
                                 'current_chunk': i,
                                 'total_chunks': total_chunks
                             }
+                            
+                            logger.translation_logger.info(f"Yielding Google-only progress: {final_progress:.1f}% - Chunk {i}/{total_chunks}")
+                            yield progress_update
+                            
+                            # Small delay to ensure frontend can process the update
+                            time.sleep(0.1)
                         else:
                             # Stage 2: Literary refinement
                             logger.translation_logger.info(f"Refining chunk {i}/{total_chunks}")
@@ -511,7 +517,7 @@ class BookTranslator:
                         ))
                     
                     # Send progress update (single update per chunk)
-                    yield {
+                    progress_update = {
                         'progress': progress,
                         'stage': stage,
                         'machine_translation': '\n\n'.join(machine_translations),
@@ -519,6 +525,12 @@ class BookTranslator:
                         'current_chunk': current_chunk,
                         'total_chunks': total_chunks_display
                     }
+                    
+                    logger.translation_logger.info(f"Yielding progress update: {progress:.1f}% - Chunk {current_chunk}/{total_chunks_display}")
+                    yield progress_update
+                    
+                    # Small delay to ensure frontend can process the update
+                    time.sleep(0.1)
                     
                 except Exception as e:
                     error_msg = f"Error processing chunk {i}: {str(e)}"
